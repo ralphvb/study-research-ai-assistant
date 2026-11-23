@@ -1,0 +1,9 @@
+[project]
+name = "study-research-ai-assistant"
+version="0.1.0"
+
+# Keep development machines on the supported Python 3.12 series.
+requires-python=">=3.12,<3.13"
+
+# The initial command-line entry point uses only the Python standard library.
+dependencies=[]
