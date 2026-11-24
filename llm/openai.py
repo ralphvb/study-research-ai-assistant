@@ -24,7 +24,7 @@ class OpenAICLient:
     def chat(self, messages: Sequence[ChatMessage]) -> ChatResponse:
         """Generate a reply from messages supplied in conversation order."""
         input_message = [
-            {"role": messages.role, "content": message.content} for message in messages
+            {"role": message.role, "content": message.content} for message in messages
         ]
 
         start_at = perf_counter()
@@ -51,5 +51,5 @@ class OpenAICLient:
             model=response.model,
             latency_seconds=latency_seconds,
             input_tokens=usage.input_tokens if usage else None,
-            output_tokens=usage.output_tokens if usage else None
+            output_tokens=usage.output_tokens if usage else None,
         )

@@ -36,7 +36,7 @@ class OpenAISettings(BaseSettings):
 
     api_key: SecretStr = Field(
         min_length=1,
-        validation_alias="OPEN_AI_KEY"
+        validation_alias="OPENAI_API_KEY"
     )
 
     model: str = Field(
