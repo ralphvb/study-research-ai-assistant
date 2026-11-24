@@ -25,7 +25,7 @@ class OllamaClient:
             "messages": [asdict(message) for message in messages],
             "stream": False,
             "think": True,
-            "options": {"num_ctx": self.settings.context_tokens},
+            "options": {"num_ctx": self.settings.context_tokens, "num_predict": -1},
         }
 
         base_url = str(self.settings.base_url).rstrip("/")
@@ -33,7 +33,7 @@ class OllamaClient:
             f"{base_url}/api/chat",
             data=json.dumps(payload).encode("utf-8"),
             headers={"Content-Type": "application/json"},
-            method="POST"
+            method="POST",
         )
         started_at = perf_counter()
 
@@ -42,6 +42,9 @@ class OllamaClient:
 
         latency_seconds = perf_counter() - started_at
 
+        # if result.get("done_reason") == "length":
+        #     raise ValueError("Ollama reached the generation token limit")
+
         content = result["message"]["content"]
 
         if result.get("done") is not True or not isinstance(content, str):
@@ -49,8 +52,19 @@ class OllamaClient:
 
         content = content.strip()
 
+        # if not content or "<think>" in content or "</think>" in content:
+        #     raise ValueError("Ollama did not return clean final text.")
+
         if not content or "<think>" in content or "</think>" in content:
-            raise ValueError("Ollama did not return clean final text.")
+            problem = "texto final vacío" if not content else "etiquetas de razonamiento"
+            has_thinking = bool(result["message"].get("thinking"))
+            raise ValueError(
+                f"Ollama devolvió {problem}. "
+                f"Tiempo total: {latency_seconds:.2f} s. "
+                f"Motivo de fin: {result.get('done_reason', 'n/d')}. "
+                f"Tokens generados: {result.get('eval_count', 'n/d')}. "
+                f"Campo thinking con texto: {'sí' if has_thinking else 'no'}."
+            )
 
         return ChatResponse(
             content=content,

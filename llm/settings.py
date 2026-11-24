@@ -15,13 +15,15 @@ class OllamaSettings(BaseSettings):
         env_file=PROJECT_ROOT / ".env",
         env_file_encoding="utf-8",
         env_prefix="SR_OLLAMA_",
+        env_parse_none_str="null",
         extra="ignore"
     )
 
     base_url: HttpUrl
     model: str = Field(min_length=1)
     context_tokens: int = Field(gt=0)
-    timeout_seconds: float = Field(gt=0, allow_inf_nan=False)
+    # timeout_seconds: float = Field(gt=0, allow_inf_nan=False)
+    timeout_seconds: float | None = Field(gt=0, allow_inf_nan=False)
 
 
 class OpenAISettings(BaseSettings):
