@@ -14,6 +14,7 @@ QUESTION = (
     "Responde en dos frases y en español."
 )
 
+# QUESTION = "Responde únicamente listo."
 
 def main() -> None:
     """Run the test propmt against the selected provider on demand."""
@@ -35,7 +36,7 @@ def main() -> None:
         else:
             client = OllamaClient(OllamaSettings())
 
-        with st.spinner("Esperando respuesta de {provider}"):
+        with st.spinner(f"Esperando respuesta de {provider}"):
             reply = client.chat([ChatMessage(role="user", content=QUESTION)])
     except ValidationError:
         st.error(f"Revisa las credenciales para {provider}.")
@@ -48,6 +49,7 @@ def main() -> None:
         return
     except(OSError, ValueError, KeyError, TypeError) as error:
         st.error(f"La prueba con {provider} falló: {error}")
+        return
 
     
     st.success(f"{reply.provider} respondió con {reply.model}.")
