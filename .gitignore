@@ -6,3 +6,6 @@ __pycache__/
 
 # Machine-specific settings.
 .env
+
+# Local study and research workspace data.
+.workspace/
