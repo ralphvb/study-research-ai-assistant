@@ -33,7 +33,7 @@ class OllamaClient:
 
         # Forward explicit thinking settings, including False.
         if self.settings.request_thinking is not None:
-            payload["think"] = True
+            payload["think"] = self.settings.request_thinking
 
         base_url = str(self.settings.base_url).rstrip("/")
         request = Request(
