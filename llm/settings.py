@@ -25,7 +25,7 @@ class OllamaSettings(BaseSettings):
     context_tokens: int = Field(gt=0)
     timeout_seconds: float | None = Field(gt=0, allow_inf_nan=False)
     max_output_tokens: int | None = Field(default=None, gt=0)
-    request_thinking: bool = True
+    request_thinking: bool | None = True
 
 
 class OpenAISettings(BaseSettings):

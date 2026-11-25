@@ -31,8 +31,8 @@ class OllamaClient:
             },
         }
 
-        # Keep the flag unset when using a model without a thinking mode.
-        if self.settings.request_thinking:
+        # Forward explicit thinking settings, including False.
+        if self.settings.request_thinking is not None:
             payload["think"] = True
 
         base_url = str(self.settings.base_url).rstrip("/")
