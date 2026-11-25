@@ -52,7 +52,7 @@ class ProjectStore:
         """Return saved projects in order of creation, newest first."""
         with closing(sqlite3.connect(self.database)) as connection:
             rows = connection.execute(
-                "SELECT id, name, purpose FOMR projects ORDER BY id DESC"
+                "SELECT id, name, purpose FROM projects ORDER BY id DESC"
             ).fetchall()
 
         return [Project(*row) for row in rows]
