@@ -1,5 +1,8 @@
 """Provide a PDF workspace and model connectivity tests in Streamlit."""
 
+import sqlite3
+from pathlib import Path
+
 import streamlit as st
 from openai import APIConnectionError, APIStatusError
 from pydantic import ValidationError
@@ -9,6 +12,9 @@ from llm.contracts import ChatClient, ChatMessage
 from llm.ollama import OllamaClient
 from llm.openai import OpenAICLient
 from llm.settings import OllamaSettings, OpenAISettings
+from workspace.projects import ProjectStore
+
+PROJECT_DATABASE = Path(__file__).resolve().parent / ".workspace" / "projects.sqlite3"
 
 QUESTION = (
     "¿Qué significa que una organización sea un sistema abierto? "
@@ -19,7 +25,41 @@ QUESTION = (
 
 
 def render_workspace() -> None:
-    """Preview extracted text by physical PDF page number."""
+    """Create or select a saved project and preview a PDF for that project."""
+
+    with st.form("create_project", clear_on_submit=True):
+        name = st.text_input("Project name")
+        purpose = st.text_area("Study or research purpose")
+        submitted = st.form_submit_button("Create project")
+
+
+    try:
+        store = ProjectStore(PROJECT_DATABASE)
+        new_project_id = store.create(name, purpose) if submitted else None
+        projects = store.list_projects()
+    except ValueError as error:
+        st.error(str(error))
+        return
+    except (OSError, sqlite3.Error):
+        st.error("Could not open or update the local project database.")
+        return
+
+    if not projects:
+        return
+
+    projects_by_id = {project.id: project for project in projects}
+
+    if new_project_id is not None:
+        st.session_state["workspace_project_id"] = new_project_id
+
+    project_id = st.selectbox(
+        "Project",
+        options=list(projects_by_id),
+        format_func=lambda item: f"{projects_by_id[item].name} (#{item})",
+        key="workspace_project_id"
+    )
+    st.text(projects_by_id[project_id].purpose)
+
     upload = st.file_uploader("PDF Document", type=["pdf"])
 
     if upload is None:
