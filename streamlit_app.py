@@ -60,7 +60,7 @@ def render_workspace() -> None:
     )
     st.text(projects_by_id[project_id].purpose)
 
-    upload = st.file_uploader("PDF Document", type=["pdf"])
+    upload = st.file_uploader("PDF Document", type=["pdf"], key=f"project_pdf_{project_id}")
 
     if upload is None:
         return
