@@ -29,6 +29,7 @@ def render_workspace() -> None:
         pages = read_pdf_pages(upload.getvalue())
     except ValueError as error:
         st.error(str(error))
+        return
 
     page_number = st.selectbox("PDF page", [page.number for page in pages])
     page = pages[page_number - 1]
