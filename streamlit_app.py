@@ -12,7 +12,8 @@ from llm.contracts import ChatClient, ChatMessage
 from llm.ollama import OllamaClient
 from llm.openai import OpenAICLient
 from llm.settings import OllamaSettings, OpenAISettings
-from workspace.projects import ProjectStore
+from workspace.academic import analyze_pages, assess_purpose
+from workspace.projects import Project, ProjectStore
 
 PROJECT_DATABASE = Path(__file__).resolve().parent / ".workspace" / "projects.sqlite3"
 
@@ -24,8 +25,47 @@ QUESTION = (
 # QUESTION = "Responde únicamente listo."
 
 
+def build_client(provider: str) -> ChatClient:
+    """Load the settings for the selected model provider."""
+    if provider == "OpenAI (cloud)":
+        return OpenAICLient()
+    return OllamaClient()
+
+
+def create_academic_project(
+    store: ProjectStore, name: str, purpose: str, provider: str
+) -> int | None:
+    """Save the project only after an explicit academic decision."""
+    if not name.strip() or not purpose.strip():
+        st.error("Enter a project name and a study or research purpose.")
+        return None
+
+    try:
+        with st.spinner("Checking academic scope..."):
+            decision = assess_purpose(build_client(provider), purpose.strip())
+    except (
+        APIConnectionError,
+        APIStatusError,
+        OSError,
+        ValueError,
+        KeyError,
+        TypeError,
+    ):
+        st.error("Could not validate the project wit the selected provider.")
+        return None
+
+    if decision.status != "academic":
+        st.warning(decision.reason)
+        return None
+
+    return store.create(name, purpose)
+
+
 def render_workspace() -> None:
     """Create or select a saved project and preview a PDF for that project."""
+
+    provider = st.selectbox("Validation Provider", ["Ollama (local)", "OpenAI (cloud)"])
+    st.caption("Creation sends the purpose text to the selected provider.")
 
     with st.form("create_project", clear_on_submit=True):
         name = st.text_input("Project name")
@@ -34,7 +74,11 @@ def render_workspace() -> None:
 
     try:
         store = ProjectStore(PROJECT_DATABASE)
-        new_project_id = store.create(name, purpose) if submitted else None
+        new_project_id = None
+
+        if submitted:
+            new_project_id = create_academic_project(store, name, purpose, provider)
+
         projects = store.list_projects()
     except ValueError as error:
         st.error(str(error))
@@ -60,11 +104,13 @@ def render_workspace() -> None:
 
     st.text(projects_by_id[project_id].purpose)
 
-    render_project_documents(store, project_id)
+    render_project_documents(store, projects_by_id[project_id])
 
 
-def render_project_documents(store: ProjectStore, project_id: int) -> None:
+def render_project_documents(store: ProjectStore, project: Project) -> None:
     """Preview a new upload or reopen a PDF registered under this project."""
+    project_id = project.id
+
     if st.session_state.pop(f"pdf_saved_{project_id}", False):
         st.success("PDF saved. reopen it from Project document.")
 
@@ -82,7 +128,7 @@ def render_project_documents(store: ProjectStore, project_id: int) -> None:
             ),
             key=f"project_document_{project_id}",
             filter_mode=None,
-            required=True
+            required=True,
         )
 
         if document_id == "upload":
@@ -114,12 +160,64 @@ def render_project_documents(store: ProjectStore, project_id: int) -> None:
 
     render_pdf_preview(pages)
 
+    if document_id != "upload":
+        render_academic_analysis(
+            project, documents[document_id].name, document_id, pages
+        )
+
 
 def render_pdf_preview(pages: list[PdfPage]) -> None:
     """Display extracted text by one-based PDF page number."""
     page_number = st.selectbox("PDF page", [page.number for page in pages])
     page = pages[page_number - 1]
     st.text(page.text or "This page has no extractable text.")
+
+
+def render_academic_analysis(
+    project: Project, document_name: str, document_id: int, pages: list[PdfPage]
+) -> None:
+    """Request a reviewable interpretation of explicitly selected PDF pages."""
+    with st.form(f"academic_analysis_{project.id}_{document_id}"):
+        selected = st.multiselect(
+            "Pages to analyze", [page.number for page in pages if page.text.strip()]
+        )
+        provider = st.selectbox(
+            "Analysis provider", ["Ollama (local)", "OpenAI (cloud)"]
+        )
+        st.caption(
+            "Analysis send the project purpose and selected page text to this provider."
+        )
+        submitted = st.form_submit_button("Analyze selected page")
+
+        if not submitted:
+            return
+
+        try:
+            with st.spinner("Analysis selected pages"):
+                result = analyze_pages(
+                    build_client(provider),
+                    project.purpose,
+                    [page for page in pages if page.number in selected],
+                )
+        except ValidationError:
+            st.error("Check the provider configuration or retry the analysis.")
+            return
+        except ValueError as error:
+            st.error(str(error))
+            return
+        except (APIConnectionError, APIStatusError, OSError, KeyError, TypeError):
+            st.error("Could not analyze the pages with the selected provider.")
+
+        if result.status != "supported":
+            st.warning(result.reason)
+            return
+
+        st.subheader("Analysis draft")
+        st.text(result.reason)
+        for finding in result.findings:
+            st.caption(f"{document_name}, PDF Page {finding.page}")
+            st.text(finding.interpretation)
+            st.text(finding.quote)
 
 
 def render_model_test() -> None:
