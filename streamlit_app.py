@@ -7,7 +7,7 @@ import streamlit as st
 from openai import APIConnectionError, APIStatusError
 from pydantic import ValidationError
 
-from documents.pdf import read_pdf_pages
+from documents.pdf import PdfPage, read_pdf_pages
 from llm.contracts import ChatClient, ChatMessage
 from llm.ollama import OllamaClient
 from llm.openai import OpenAICLient
@@ -58,22 +58,68 @@ def render_workspace() -> None:
         format_func=lambda item: f"{projects_by_id[item].name} (#{item})",
         key="workspace_project_id"
     )
+    
     st.text(projects_by_id[project_id].purpose)
 
-    upload = st.file_uploader("PDF Document", type=["pdf"], key=f"project_pdf_{project_id}")
+    render_project_documents(store, project_id)
 
-    if upload is None:
-        return
+
+def render_project_documents(store: ProjectStore, project_id: int) -> None:
+    """Preview a new upload or reopen a PDF registered under this project."""
+    if st.session_state.pop(f"pdf_saved_{project_id}", False):
+        st.success("PDF saved. reopen it from Project document.")
 
     try:
-        pages = read_pdf_pages(upload.getvalue())
+        documents = {
+            document.id: document
+            for document in store.list_documents(project_id)
+        }
+        document_id = st.selectbox(
+            "Project document",
+            option=[None, *documents],
+            format_func=lambda item: (
+                "Upload a PDF" if item is None else f"{documents[item].name} (#{item})"
+            ),
+            key=f"project_document_{project_id}"
+        )
+
+        if document_id is None:
+            upload = st.file_uploader(
+                "PDF Document",
+                type=["pdf"],
+                key=f"project_pdf_{project_id}"
+            )
+
+            if upload is None:
+                return
+
+            content = upload.getvalue()
+            pages = read_pdf_pages(content)
+
+            if st.button("Save documents"):
+                if store.save_documents(project_id, upload.name, content):
+                    st.session_state[f"pdf_saved_{project_id}"] = True
+                    st.rerun()
+                else:
+                    st.info("This PDF is already saved in this project.")
+        else:
+            pages = read_pdf_pages(store.read_document(documents[document_id]))
+
     except ValueError as error:
         st.error(str(error))
         return
+    except (OSError, sqlite3.Error):
+        st.error("Could not open or save the local project document.")
+        return
+    
+    render_pdf_preview(pages)
+    
 
+def render_pdf_preview(pages: list[PdfPage]) -> None:
+    """Display extracted text by one-based PDF page number."""
     page_number = st.selectbox("PDF page", [page.number for page in pages])
     page = pages[page_number - 1]
-    st.text(page.text or "This page does not extractable text.")
+    st.text(page.text or "This page has no extractable text.")
 
 
 def render_model_test() -> None:
