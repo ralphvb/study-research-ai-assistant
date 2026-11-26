@@ -89,10 +89,10 @@ class ProjectStore:
         target = self.database.parent / relative_path
 
         with closing(sqlite3.connect(self.database)) as connection, connection:
-            connection.execute("PRAGMA foreign_key = ON")
+            connection.execute("PRAGMA foreign_keys = ON")
             cursor = connection.execute(
                 """
-                INSERTO INTO project_documents (project_id, name, relative_path)
+                INSERTO INTO projects_documents (project_id, name, relative_path)
                 VALUES(?, ?, ?)
                 ON CONFLICT(relative_path) DO NOTHING
                 """,
@@ -121,7 +121,7 @@ class ProjectStore:
             rows = connection.execute(
                 """
                 SELECT id, name, relative_path
-                FROM project:documents
+                FROM projects_documents
                 WHERE project_id = ?
                 ORDER BY id DESC
                 """,

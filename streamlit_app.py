@@ -32,7 +32,6 @@ def render_workspace() -> None:
         purpose = st.text_area("Study or research purpose")
         submitted = st.form_submit_button("Create project")
 
-
     try:
         store = ProjectStore(PROJECT_DATABASE)
         new_project_id = store.create(name, purpose) if submitted else None
@@ -56,9 +55,9 @@ def render_workspace() -> None:
         "Project",
         options=list(projects_by_id),
         format_func=lambda item: f"{projects_by_id[item].name} (#{item})",
-        key="workspace_project_id"
+        key="workspace_project_id",
     )
-    
+
     st.text(projects_by_id[project_id].purpose)
 
     render_project_documents(store, project_id)
@@ -71,23 +70,24 @@ def render_project_documents(store: ProjectStore, project_id: int) -> None:
 
     try:
         documents = {
-            document.id: document
-            for document in store.list_documents(project_id)
+            document.id: document for document in store.list_documents(project_id)
         }
         document_id = st.selectbox(
             "Project document",
-            option=[None, *documents],
+            options=["upload", *documents],
             format_func=lambda item: (
-                "Upload a PDF" if item is None else f"{documents[item].name} (#{item})"
+                "Upload a PDF"
+                if item == "upload"
+                else f"{documents[item].name} (#{item})"
             ),
-            key=f"project_document_{project_id}"
+            key=f"project_document_{project_id}",
+            filter_mode=None,
+            required=True
         )
 
-        if document_id is None:
+        if document_id == "upload":
             upload = st.file_uploader(
-                "PDF Document",
-                type=["pdf"],
-                key=f"project_pdf_{project_id}"
+                "PDF Document", type=["pdf"], key=f"project_pdf_{project_id}"
             )
 
             if upload is None:
@@ -111,9 +111,9 @@ def render_project_documents(store: ProjectStore, project_id: int) -> None:
     except (OSError, sqlite3.Error):
         st.error("Could not open or save the local project document.")
         return
-    
+
     render_pdf_preview(pages)
-    
+
 
 def render_pdf_preview(pages: list[PdfPage]) -> None:
     """Display extracted text by one-based PDF page number."""
