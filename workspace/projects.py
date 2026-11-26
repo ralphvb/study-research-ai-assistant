@@ -92,7 +92,7 @@ class ProjectStore:
             connection.execute("PRAGMA foreign_keys = ON")
             cursor = connection.execute(
                 """
-                INSERTO INTO projects_documents (project_id, name, relative_path)
+                INSERT INTO projects_documents (project_id, name, relative_path)
                 VALUES(?, ?, ?)
                 ON CONFLICT(relative_path) DO NOTHING
                 """,
